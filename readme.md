@@ -42,12 +42,12 @@ BIZ.RTYN.DCP/1 200 OK
 
 ### Exchange secret
 
-Start exchanging keys for a round.
+Start exchanging keys for a round. Put nodesList in order by id for round robin propogate. If last node in nodesList, designate random node to calculate message and submit to dead drop / blockchain, or IPFS
 
 Request
 
 ```
-BIZ.RTYN.DCP/1 EXCHANGE_SECRET <value>
+BIZ.RTYN.DCP/1 EXCHANGE_SECRET <from_id> <value>
 ```
 
 Response
@@ -65,6 +65,7 @@ BIZ.RTYN.DCP/1 200 OK
 
 TODO
 
+testing async
 howto determine who will send message next round?
 authentication
 how to detect dodgy nodes?

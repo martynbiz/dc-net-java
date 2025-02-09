@@ -2,13 +2,15 @@ package biz.rtyn.p2p;
 
 import java.util.ArrayList;
 import java.util.UUID;
+
+import static java.lang.Thread.sleep;
 //import java.util.List;
 
 public class Main {
 
     private static final ArrayList<Client> nodes = new ArrayList<>();
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
 
         // this will create a local test network environment to test
         initNetworkTestEnvironment();
@@ -20,6 +22,12 @@ public class Main {
 
         // join the network through known nodes
         client.joinNetwork("localhost", 8101);
+
+        // TODO just to allow propagation
+        sleep(1000);
+
+        // init exchange secrets
+        client.sendSecrets();
 
 //        System.out.println("Starting...");
 //

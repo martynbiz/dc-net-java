@@ -2,6 +2,7 @@ package biz.rtyn.p2p;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -13,6 +14,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+
+import static java.lang.Thread.sleep;
 
 public class Client {
     
@@ -131,24 +134,24 @@ public class Client {
 
                     break;
 
-//                // exchange secrets
-//                case "SECRET_EXCHANGE":
-//
-//                    int fromClientId = Integer.parseInt(args[0]);
-//                    int secret = Integer.parseInt(args[1]);
-//                    boolean propogate = Integer.parseInt(args[2]) == 1;
-//
-////                    System.out.println(".. fromClientId: " + fromClientId);
-////                    System.out.println(".. secret: " + secret);
-////                    System.out.println(".. propogate: " + propogate);
-//
-//                    thisClient.setSecret(fromClientId, secret, propogate);
-//
-////                    // output headers + body
-////                    writer.write("BIZ.RTYN.DCP/1 200 OK");
-////                    writer.flush();
-//
-//                    break;
+                // exchange secrets
+                case "SECRET_EXCHANGE":
+
+                    String fromNodeId = args[0];
+                    int secret = Integer.parseInt(args[1]);
+                    boolean propogate = Integer.parseInt(args[2]) == 1;
+
+//                    System.out.println(".. fromNodeId: " + fromNodeId);
+//                    System.out.println(".. secret: " + secret);
+//                    System.out.println(".. propogate: " + propogate);
+
+                    thisClient.setSecret(fromNodeId, secret, propogate);
+
+//                    // output headers + body
+//                    writer.write("BIZ.RTYN.DCP/1 200 OK");
+//                    writer.flush();
+
+                    break;
             }
 
         } catch (IOException e) {
@@ -218,9 +221,10 @@ public class Client {
 
             // notify all nodes of new node, except known node (as they have done that in join_network)
             for (Node node: nodesList) {
-                if (!node.getHostname().equals(knHostname) && node.getPort() != knPort) {
-                    notifyNode(node);
-                }
+//                if (!node.getHostname().equals(knHostname) && node.getPort() != knPort) {
+//                    notifyNode(node);
+//                }
+                notifyNode(node);
             }
 
         } catch (IOException e) {
@@ -263,77 +267,77 @@ public class Client {
 
     }
 
-//     public void sendSecrets() {
+     public void sendSecrets() {
 
-//         int limit = Math.max(1, nodesList.size() - 1); // max
-//         int count = 0;
-//         boolean propogate = true;
-//         for (int i = 0; i < nodesList.size() && count < limit; i++) {
-//             if (clientSecrets.get(i) == null) {
-//                 Client clientToSendTo = nodesList.get(i);
+         int limit = Math.max(1, nodesList.size() - 1); // max
+         int count = 0;
+         boolean propogate = true;
+         for (int i = 0; i < nodesList.size() && count < limit; i++) {
+             Node node = nodesList.get(i);
+             if (node.getSecret() == null) {
+                 Node nodeToSendTo = nodesList.get(i);
 
-//                 Random random = new Random();
-//                 int secret = random.nextInt(256);
+                 Random random = new Random();
+                 int secret = random.nextInt(256);
 
-//                 clientSecrets.set(i, secret);
-//                 sendSecret(clientToSendTo, secret, propogate);
+                 node.setSecret(secret);
+                 sendSecret(nodeToSendTo, secret, propogate);
 
-//                 count++;
-//                 propogate = false;
-//             }
-//         }
+                 count++;
+                 propogate = false;
+             }
+         }
+     }
 
-//     }
+     // client socket
+     void sendSecret(Node nodeToSendTo, int secret, boolean propogate) {
+         String hostname = nodeToSendTo.getHostname();
+         int port = nodeToSendTo.getPort();
 
-//     // client socket
-//     void sendSecret(Client clientToSendTo, int secret, boolean propogate) {
-//         String hostname = clientToSendTo.getHostname();
-//         int port = clientToSendTo.getPort();
+         try (Socket clientSocket = new Socket(hostname, port);
+              BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
+              BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
 
-//         try (Socket clientSocket = new Socket(hostname, port);
-//              BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
-//              BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+             // Send message to the server
+             String message = "BIZ.RTYN.DCP/1 SECRET_EXCHANGE " + this.getId() + " " + secret + " " + (propogate ? "1" : "0") + "\n";
 
-//             // Send message to the server
-//             String message = "BIZ.RTYN.DCP/1 SECRET_EXCHANGE " + this.getId() + " " + secret + " " + (propogate ? "1" : "0") + "\n";
+             System.out.println("Sending (" + this.getId() + "): " + message);
 
-//             System.out.println("Sending (" + this.getId() + "): " + message);
+             writer.write(message);
+             writer.newLine();  // Ensure the server can detect the end of the message
+             writer.flush();
 
-//             writer.write(message);
-//             writer.newLine();  // Ensure the server can detect the end of the message
-//             writer.flush();
+ //            // Receive response from the server
+ //            String serverResponse = reader.readLine();
+ //            System.out.println("Server Response: " + serverResponse);
 
-// //            // Receive response from the server
-// //            String serverResponse = reader.readLine();
-// //            System.out.println("Server Response: " + serverResponse);
+         } catch (IOException e) {
+             e.printStackTrace();
+         }
 
-//         } catch (IOException e) {
-//             e.printStackTrace();
-//         }
+     }
 
-//     }
+     // replace with server socket
+     void setSecret(String fromNodeId, int secret, boolean propogate) {
 
-    // // replace with server socket
-    // void setSecret(int fromClientId, int secret, boolean propogate) {
+         Node fromNode = null;
+         for(Node node: nodesList) {
+             if (node.getId().equals(fromNodeId)) {
+                 fromNode = node;
+             }
+         }
 
-    //     Client fromClient = null;
-    //     for(Client client: clients) {
-    //         if (client.getId() == fromClientId) {
-    //             fromClient = client;
-    //         }
-    //     }
+         for (Node node : nodesList) {
+             if (node == fromNode) {
+                 node.setSecret(secret);
+             }
+         }
 
-    //     for (int i = 0; i < nodesList.size(); i++) {
-    //         Client client = nodesList.get(i);
-    //         if (client == fromClient) {
-    //             clientSecrets.set(i, secret);
-    //         }
-    //     }
+         if (propogate) {
+             sendSecrets();
+         }
 
-    //     if (propogate) {
-    //         sendSecrets();
-    //     }
-    // }
+     }
 
     // public int generatePublicValue() {
     //     int result = 0;  // XOR identity value
