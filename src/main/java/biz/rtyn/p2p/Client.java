@@ -41,7 +41,6 @@ public class Client {
 
     }
 
-
     private static void startServer(Client thisClient, int port) {
 
         // set up server socket
@@ -68,7 +67,7 @@ public class Client {
             // Read request line
             // e.g. "BIZ.RTYN.DCP/1 200 OK"
             String requestLine = reader.readLine();
-            System.out.println("Received: " + requestLine);
+            System.out.println("Received (" + thisClient.getId() + "): " + requestLine);
 
             String[] parts = requestLine.split("\\s+");
             String version = parts[0];
@@ -85,13 +84,9 @@ public class Client {
                 // return peer network list
                 case "JOIN_NETWORK":
 
-                    // add the joining node to nodesList
                     String id = UUID.randomUUID().toString();
                     String hostname = args[0];
                     int port = Integer.parseInt(args[1]);
-                    thisClient.addNode(id, hostname, port);
-
-                    // TODO broadcast new node
 
                     // output headers + body
                     writer.write("BIZ.RTYN.DCP/1 200 OK\n");
@@ -99,12 +94,40 @@ public class Client {
                     // assign ID
                     writer.write(id + "\n"); // new node id
 
+                    // add this node
+                    writer.write(thisClient.getId() + ":" + thisClient.getHostname() + ":" + thisClient.getPort() + "\n");
+
                     // output nodesList
                     for (Node node: thisClient.nodesList) {
                         writer.write(node.getId() + ":" + node.getHostname() + ":" + node.getPort() + "\n");
                     }
 
+                    // add the joining node to nodesList
+                    thisClient.addNode(id, hostname, port);
+
                     writer.flush();
+
+                    break;
+
+                // announce a new node has joined
+                case "ADD_NODE":
+
+                    String nodeId = args[0];
+
+                    // check if node exists
+                    boolean isFound = false;
+                    for (Node node: thisClient.getNodesList()) {
+                        if (node.getId() == nodeId) {
+                            isFound = true;
+                            break;
+                        }
+                    }
+
+                    if (!isFound) {
+                        String nodeHostname = args[1];
+                        int nodePort = Integer.parseInt(args[2]);
+                        thisClient.addNode(nodeId, nodeHostname, nodePort);
+                    }
 
                     break;
 
@@ -146,6 +169,10 @@ public class Client {
         return port;
     }
 
+    public ArrayList<Node> getNodesList() {
+        return nodesList;
+    }
+
     public void joinNetwork(String knHostname, int knPort) {
 
         try (Socket clientSocket = new Socket(knHostname, knPort);
@@ -155,7 +182,7 @@ public class Client {
             // Send message to the server
             String message = "BIZ.RTYN.DCP/1 JOIN_NETWORK " + hostname + " " + port;
 
-            System.out.println("Sending: " + message);
+            System.out.println("Sending (" + id + "): " + message);
 
             writer.write(message);
             writer.newLine();  // Ensure the server can detect the end of the message
@@ -179,11 +206,21 @@ public class Client {
             while ((nodeLine = reader.readLine()) != null) {
                 System.out.println("  " + nodeLine);
 
+                // add new node to nodesList
                 String[] nodeParts = nodeLine.split(":");
                 String id = nodeParts[0];
                 String hostname = nodeParts[1];
                 int port = Integer.parseInt(nodeParts[2]);
-                nodesList.add(new Node(id, hostname, port));
+                Node node = new Node(id, hostname, port);
+                nodesList.add(node);
+
+            }
+
+            // notify all nodes of new node, except known node (as they have done that in join_network)
+            for (Node node: nodesList) {
+                if (!node.getHostname().equals(knHostname) && node.getPort() != knPort) {
+                    notifyNode(node);
+                }
             }
 
         } catch (IOException e) {
@@ -194,6 +231,36 @@ public class Client {
 
     public void addNode(String id, String hostname, int port) {
         nodesList.add(new Node(id, hostname, port));
+    }
+
+    public void notifyNode(Node node) {
+
+        try (Socket clientSocket = new Socket(node.getHostname(), node.getPort());
+             BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(clientSocket.getOutputStream()));
+             BufferedReader reader = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()))) {
+
+            // Send message to the server
+            String message = "BIZ.RTYN.DCP/1 ADD_NODE " + id + " " + hostname + " " + port;
+
+            System.out.println("Sending (" + id + "): " + message);
+
+            writer.write(message);
+            writer.newLine();  // Ensure the server can detect the end of the message
+            writer.flush();
+
+//            // Receive response from the server
+//            // e.g. BIZ.RTYN.DCP/1 200 OK
+//            String responseLine = reader.readLine();
+//            System.out.println("Server Response: " + responseLine);
+//            String[] parts = responseLine.split("\\s+");
+////            String version = parts[0];
+////            String statusCode = parts[1];
+////            String statusMessage = parts[2];
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
     }
 
 //     public void sendSecrets() {

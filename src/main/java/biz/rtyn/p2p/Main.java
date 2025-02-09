@@ -16,12 +16,10 @@ public class Main {
 
 
         // on app start
-        Client client = new Client("localhost", 8103);
+        Client client = new Client("localhost", 8200);
 
         // join the network through known nodes
         client.joinNetwork("localhost", 8101);
-
-
 
 //        System.out.println("Starting...");
 //
@@ -55,10 +53,16 @@ public class Main {
         // they will be available on the network and have their nodes known
         Client client1 = new Client("localhost", 8101, UUID.randomUUID().toString());
         Client client2 = new Client("localhost", 8102, UUID.randomUUID().toString());
+//        Client client3 = new Client("localhost", 8103, UUID.randomUUID().toString());
 
         client1.addNode(client2.getId(), client2.getHostname(), client2.getPort());
+//        client1.addNode(client3.getId(), client3.getHostname(), client3.getPort());
         
         client2.addNode(client1.getId(), client1.getHostname(), client1.getPort());
+//        client2.addNode(client3.getId(), client3.getHostname(), client3.getPort());
+
+//        client3.addNode(client1.getId(), client1.getHostname(), client1.getPort());
+//        client3.addNode(client2.getId(), client2.getHostname(), client2.getPort());
 
     }
 }
